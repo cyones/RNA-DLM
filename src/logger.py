@@ -11,3 +11,5 @@ class Logger():
     def __del__(self):
         self.file.close()
 
+
+log = Logger("logfiles/test.log")

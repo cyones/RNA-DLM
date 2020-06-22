@@ -1,7 +1,7 @@
 import torch as tr
 import random as rn
 from Bio import SeqIO
-import logging as log
+from src.logger import log
 from torch.utils.data import Dataset
 
 class MaskedRNAGenerator(Dataset):
@@ -16,7 +16,7 @@ class MaskedRNAGenerator(Dataset):
             for record in SeqIO.parse(handle, "fasta"):
                 seq = str(record.seq.lower().transcribe())
                 if len(seq) < self.sequence_len:
-                    log.warn(f"Sequence {record.name} too short, skipped...")
+                    log.write(f"Sequence {record.name} too short, skipped...\n")
                 tns = tr.ByteTensor([self.seq2num[n] for n in seq])
                 self.chromosome.append(tns)
                 self.total_len += len(seq)
@@ -30,7 +30,7 @@ class MaskedRNAGenerator(Dataset):
             index -= len(self.chromosome[chromosome_idx])
             chromosome_idx += 1
         seq = self.chromosome[chromosome_idx][index:(index+self.sequence_len)]
-        seq = tr.nn.functional.pad(seq, [0, self.sequence_len-len(seq)], value=15)
+        seq = tr.nn.functional.pad(seq, [0, self.sequence_len-len(seq)])
         
         mask_len = rn.randint(1, self.max_masked_len)
         mask_number = int((self.masked_proportion * self.sequence_len) // mask_len)
