@@ -9,7 +9,7 @@ class PositionalEncoding(tr.nn.Module):
         div_term = tr.exp(tr.arange(0, d_model, 2).float() * (-mt.log(10000.0) / d_model))
         pe[:, 0::2] = tr.sin(position * div_term)
         pe[:, 1::2] = tr.cos(position * div_term)
-        pe = pe.unsqueeze(0)
+        pe = pe.unsqueeze(0).transpose(1,2)
         self.register_buffer('pe', pe)
 
     def forward(self, x):

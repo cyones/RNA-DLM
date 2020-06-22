@@ -21,6 +21,9 @@ class RNADLM(nn.Module):
         self.transformer = nn.Sequential(
             PositionalEncoding(128, max_len=1024),
             SelfAttention(128, num_heads=4, dropout=0.1)
+            SelfAttention(128, num_heads=4, dropout=0.1)
+            SelfAttention(128, num_heads=4, dropout=0.1)
+            SelfAttention(128, num_heads=4, dropout=0.1)
         )
         self.out_conv = nn.Sequential(
             ResNet(128), ResNet(128), ResNet(128), ResNet(128),
@@ -43,9 +46,7 @@ class RNADLM(nn.Module):
         seq = seq.to(device = self.device)
         seq = self.embedding(seq)
         seq = self.convolutions(seq)
-        seq = seq.transpose(1,2)
         seq = self.transformer(seq)
-        seq = seq.transpose(1,2)
         seq = self.out_conv(seq)
 
         seq = seq.transpose(1,2).\
