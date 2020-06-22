@@ -32,13 +32,14 @@ def main(argv):
 
     data_loader = dt.DataLoader(
         dataset,
-        batch_size=16,
+        batch_size=4,
         sampler=sampler,
         pin_memory=True
         )
 
     model = RNADLM(dev)
     if path.exists("model.pmt"):
+        log.write("Loading model ./model.pmt")
         model.load("model.pmt")
 
     log.write(
