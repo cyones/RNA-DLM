@@ -20,7 +20,6 @@ class RNADLM(nn.Module):
             ResNet(128), ResNet(128), ResNet(128), ResNet(128),
             ResNet(128), ResNet(128), ResNet(128), ResNet(128),
             nn.GELU(), nn.BatchNorm1d(128),
-            nn.Conv1d(128, 128, kernel_size=3, padding=1)
         )
         self.self_atention = nn.Sequential(
             PositionalEncoding(128, max_len=1024),
@@ -31,17 +30,14 @@ class RNADLM(nn.Module):
             SelfAttention(128, num_heads=4, dropout=0.1),
             SelfAttention(128, num_heads=4, dropout=0.1),
             SelfAttention(128, num_heads=8, dropout=0.1),
-            SelfAttention(128, num_heads=8, dropout=0.1),
-            nn.GELU(), nn.BatchNorm1d(128),
-            nn.Conv1d(128, 128, kernel_size=3, padding=1)
+            SelfAttention(128, num_heads=8, dropout=0.1)
         )
         self.out_convs = nn.Sequential(
-            ResNet(128), ResNet(128), ResNet(128), ResNet(128),
-            ResNet(128), ResNet(128), ResNet(128), ResNet(128),
-            ResNet(128), ResNet(128), ResNet(128), ResNet(128),
-            ResNet(128), ResNet(128), ResNet(128), ResNet(128),
-            nn.GELU(), nn.BatchNorm1d(128),
             nn.Conv1d(128, 128, kernel_size=3, padding=1),
+            ResNet(128), ResNet(128), ResNet(128), ResNet(128),
+            ResNet(128), ResNet(128), ResNet(128), ResNet(128),
+            ResNet(128), ResNet(128), ResNet(128), ResNet(128),
+            ResNet(128), ResNet(128), ResNet(128), ResNet(128),
             nn.Sigmoid()
         )
 
