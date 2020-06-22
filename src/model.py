@@ -3,6 +3,7 @@ import torch.nn as nn
 from src.embedding import NucleotideEmbedding, in_channels
 from src.resnet import ResNet
 from src.positional_encoding import PositionalEncoding
+from src.self_attention import SelfAttention
 
 
 class RNADLM(nn.Module):
@@ -15,24 +16,13 @@ class RNADLM(nn.Module):
         self.convolutions = nn.Sequential(
             nn.Conv1d(4, 128, kernel_size=32, stride=32),
             ResNet(128), ResNet(128), ResNet(128), ResNet(128),
-            ResNet(128), ResNet(128), ResNet(128), ResNet(128),
-            ResNet(128), ResNet(128), ResNet(128), ResNet(128),
             ResNet(128), ResNet(128), ResNet(128), ResNet(128)
         )
         self.transformer = nn.Sequential(
             PositionalEncoding(128, max_len=1024),
-            nn.TransformerEncoder(
-                nn.TransformerEncoderLayer(
-                    d_model=128,
-                    nhead=4,
-                    dim_feedforward=1024,
-                    dropout=0.1),
-                num_layers=8
-            )
+            SelfAttention(128, num_heads=4, dropout=0.1)
         )
         self.out_conv = nn.Sequential(
-            ResNet(128), ResNet(128), ResNet(128), ResNet(128),
-            ResNet(128), ResNet(128), ResNet(128), ResNet(128),
             ResNet(128), ResNet(128), ResNet(128), ResNet(128),
             ResNet(128), ResNet(128), ResNet(128), ResNet(128),
             nn.ELU(), nn.BatchNorm1d(128),
@@ -59,8 +49,8 @@ class RNADLM(nn.Module):
         seq = self.out_conv(seq)
 
         seq = seq.transpose(1,2).\
-            reshape(-1, int(seq.shape[2]*32), int(seq.shape[1]/32)).\
-            transpose(1,2)
+                  reshape(-1, int(seq.shape[2]*32), int(seq.shape[1]/32)).\
+                  transpose(1,2)
         return seq
 
     def train_step(self, seq, mask_idx, masked):
