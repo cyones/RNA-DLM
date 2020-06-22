@@ -12,7 +12,5 @@ class SelfAttention(nn.Module):
         self.normalization = nn.LayerNorm(embed_dim)
     
     def forward(self, x):
-        x = x.transpose(1, 2)
         x = x + self.normalization(self.multihead_attention(x, x, x)[0])
-        x = x.transpose(1, 2)
         return x

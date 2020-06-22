@@ -13,22 +13,34 @@ class RNADLM(nn.Module):
 
         self.embedding = NucleotideEmbedding()
 
-        self.convolutions = nn.Sequential(
+        self.tokenizer = nn.Sequential(
             nn.Conv1d(4, 128, kernel_size=32, stride=32),
             ResNet(128), ResNet(128), ResNet(128), ResNet(128),
-            ResNet(128), ResNet(128), ResNet(128), ResNet(128)
+            ResNet(128), ResNet(128), ResNet(128), ResNet(128),
+            ResNet(128), ResNet(128), ResNet(128), ResNet(128),
+            ResNet(128), ResNet(128), ResNet(128), ResNet(128),
+            nn.GELU(), nn.BatchNorm1d(128),
+            nn.Conv1d(128, 128, kernel_size=3, padding=1)
         )
-        self.transformer = nn.Sequential(
+        self.self_atention = nn.Sequential(
             PositionalEncoding(128, max_len=1024),
             SelfAttention(128, num_heads=1, dropout=0.1),
             SelfAttention(128, num_heads=1, dropout=0.1),
-            SelfAttention(128, num_heads=1, dropout=0.1),
-            SelfAttention(128, num_heads=1, dropout=0.1)
+            SelfAttention(128, num_heads=2, dropout=0.1),
+            SelfAttention(128, num_heads=2, dropout=0.1),
+            SelfAttention(128, num_heads=4, dropout=0.1),
+            SelfAttention(128, num_heads=4, dropout=0.1),
+            SelfAttention(128, num_heads=8, dropout=0.1),
+            SelfAttention(128, num_heads=8, dropout=0.1),
+            nn.GELU(), nn.BatchNorm1d(128),
+            nn.Conv1d(128, 128, kernel_size=3, padding=1)
         )
-        self.out_conv = nn.Sequential(
+        self.out_convs = nn.Sequential(
             ResNet(128), ResNet(128), ResNet(128), ResNet(128),
             ResNet(128), ResNet(128), ResNet(128), ResNet(128),
-            nn.ELU(), nn.BatchNorm1d(128),
+            ResNet(128), ResNet(128), ResNet(128), ResNet(128),
+            ResNet(128), ResNet(128), ResNet(128), ResNet(128),
+            nn.GELU(), nn.BatchNorm1d(128),
             nn.Conv1d(128, 128, kernel_size=3, padding=1),
             nn.Sigmoid()
         )
@@ -36,13 +48,13 @@ class RNADLM(nn.Module):
         self.loss_function = nn.BCELoss()
         self.optimizer = tr.optim.SGD(
             self.parameters(),
-            lr=1e-2,
+            lr=1e-4,
             momentum=0.9,
             weight_decay=1e-5
             )
         self.lr_scheduler = tr.optim.lr_scheduler.CyclicLR(
             self.optimizer,
-            base_lr=1e-3, max_lr=1e-1,
+            base_lr=1e-4, max_lr=1e-1,
             step_size_up=2048,
             cycle_momentum=True, base_momentum=0.8, max_momentum=0.9
             )
@@ -52,9 +64,13 @@ class RNADLM(nn.Module):
     def forward(self, seq):
         seq = seq.to(device = self.device)
         seq = self.embedding(seq)
-        seq = self.convolutions(seq)
-        seq = self.transformer(seq)
-        seq = self.out_conv(seq)
+        seq = self.tokenizer(seq)
+        # [sequence length, batch size, embed dim]
+        seq = seq.transpose(0,1).transpose(0,2)
+        seq = self.self_atention(seq)
+        # [batch size, embed dim, sequence length]
+        seq = seq.transpose(0,1).transpose(1,2)
+        seq = self.out_convs(seq)
 
         seq = seq.transpose(1,2).\
                   reshape(-1, int(seq.shape[2]*32), int(seq.shape[1]/32)).\
