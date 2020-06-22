@@ -57,7 +57,7 @@ def main(argv):
             train_loss = 0.99 * train_loss + 0.01 * new_loss
             train_acc =  0.99 * train_acc + 0.01 * new_acc
 
-        model.lr_scheduler.step(train_loss)
+        # model.lr_scheduler.step(train_loss)
         last_improvement += 1
         if train_loss < best_train_loss:
             best_train_loss = train_loss
