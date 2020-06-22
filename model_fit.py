@@ -26,14 +26,15 @@ def main(argv):
     sampler = dt.RandomSampler(
         dataset,
         replacement=True,
-        num_samples=100
+        num_samples=1024
     )
 
     data_loader = dt.DataLoader(
         dataset,
-        batch_size=8,
+        batch_size=16,
         sampler=sampler,
-        pin_memory=True
+        pin_memory=True,
+        num_workers=2
         )
 
     model = RNADLM(dev)
