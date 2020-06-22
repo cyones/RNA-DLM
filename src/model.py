@@ -15,8 +15,8 @@ class RNADLM(nn.Module):
         self.convolutions = nn.Sequential(
             nn.Conv1d(4, 128, kernel_size=32, stride=32),
             ResNet(128), ResNet(128), ResNet(128), ResNet(128),
-            ResNet(128), ResNet(128), ResNet(128), ResNet(128)
-            ResNet(128), ResNet(128), ResNet(128), ResNet(128)
+            ResNet(128), ResNet(128), ResNet(128), ResNet(128),
+            ResNet(128), ResNet(128), ResNet(128), ResNet(128),
             ResNet(128), ResNet(128), ResNet(128), ResNet(128)
         )
         self.transformer = nn.Sequential(
@@ -27,7 +27,7 @@ class RNADLM(nn.Module):
                     nhead=4,
                     dim_feedforward=1024,
                     dropout=0.1),
-                num_layers=4
+                num_layers=8
             )
         )
         self.out_conv = nn.Sequential(
