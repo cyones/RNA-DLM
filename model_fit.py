@@ -1,15 +1,11 @@
-import os.path
 import sys
-import time
 import torch as tr
-import numpy as np
-import random as rn
 import torch.utils.data as dt
 from sklearn.metrics import precision_recall_curve, auc
 from src.dataset import MaskedRNAGenerator
 from src.model import RNADLM
 from src.parameters import ParameterParser
-from src.logger import Logger
+from src.logger import log
 
 
 tr.backends.cudnn.deterministic = False
@@ -39,8 +35,11 @@ def main(argv):
         )
 
     model = RNADLM(tr.device("cpu"))
+    log.write(
+        "Number of parameters: %d" %
+        sum(p.numel() for p in model.parameters() if p.requires_grad)
+        )
     model.train()
-    log = Logger("logfiles/test.log")
 
     log.write('nbatch\tLoss\tAcc\tlast_imp\n')
     nbatch = 0
@@ -50,9 +49,9 @@ def main(argv):
     last_improvement = 0
     while last_improvement < 1000:
         for seq, idx, msk in data_loader:
-            new_loss = model.train_step(seq, idx, msk)
+            new_loss, new_acc = model.train_step(seq, idx, msk)
             train_loss = 0.99 * train_loss + 0.01 * new_loss
-            train_acc = -1
+            train_acc =  0.99 * train_acc + 0.01 * new_acc
 
         model.lr_scheduler.step(train_loss)
         last_improvement += 1
@@ -61,7 +60,7 @@ def main(argv):
             last_improvement = 0
             model.save("model.pmt")
 
-        log.write('%d\t%.4f\t%.4f\t%d\n' %
+        log.write('%d\t%.2f\t%.2f\t%d\n' %
                 (nbatch, train_loss, train_acc, last_improvement))
         nbatch += 1
 
