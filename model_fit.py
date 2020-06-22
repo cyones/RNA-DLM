@@ -11,6 +11,8 @@ from src.logger import log
 tr.backends.cudnn.deterministic = False
 tr.backends.cudnn.benchmark = True
 
+dev = tr.device("cuda:0")
+
 def main(argv):
     pp = ParameterParser(argv)
 
@@ -34,7 +36,7 @@ def main(argv):
         pin_memory=True
         )
 
-    model = RNADLM(tr.device("cpu"))
+    model = RNADLM(dev)
     log.write(
         "Number of parameters: %d\n" %
         sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -49,6 +51,7 @@ def main(argv):
     last_improvement = 0
     while last_improvement < 1000:
         for seq, idx, msk in data_loader:
+            seq, idx, msk = seq.to(dev), idx.to(dev), msk.to(dev)
             new_loss, new_acc = model.train_step(seq, idx, msk)
             train_loss = 0.99 * train_loss + 0.01 * new_loss
             train_acc =  0.99 * train_acc + 0.01 * new_acc
