@@ -1,6 +1,7 @@
 import sys
 import torch as tr
 import torch.utils.data as dt
+from os import path
 from sklearn.metrics import precision_recall_curve, auc
 from src.dataset import MaskedRNAGenerator
 from src.model import RNADLM
@@ -37,6 +38,9 @@ def main(argv):
         )
 
     model = RNADLM(dev)
+    if path.exists("model.pmt"):
+        model.load("model.pmt")
+
     log.write(
         "Number of parameters: %d\n" %
         sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -49,7 +53,8 @@ def main(argv):
     train_acc = 0
     best_train_loss = 100
     last_improvement = 0
-    while last_improvement < 1000:
+    early_stop = float('inf')
+    while last_improvement < early_stop:
         for seq, idx, msk in data_loader:
             seq, idx, msk = seq.to(dev), idx.to(dev), msk.to(dev)
             new_loss, new_acc = model.train_step(seq, idx, msk)
