@@ -20,9 +20,9 @@ class RNADLM(nn.Module):
         )
         self.transformer = nn.Sequential(
             PositionalEncoding(128, max_len=1024),
-            SelfAttention(128, num_heads=4, dropout=0.1)
-            SelfAttention(128, num_heads=4, dropout=0.1)
-            SelfAttention(128, num_heads=4, dropout=0.1)
+            SelfAttention(128, num_heads=4, dropout=0.1),
+            SelfAttention(128, num_heads=4, dropout=0.1),
+            SelfAttention(128, num_heads=4, dropout=0.1),
             SelfAttention(128, num_heads=4, dropout=0.1)
         )
         self.out_conv = nn.Sequential(
