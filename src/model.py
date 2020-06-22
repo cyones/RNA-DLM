@@ -15,16 +15,24 @@ class RNADLM(nn.Module):
         self.convolutions = nn.Sequential(
             nn.Conv1d(4, 128, kernel_size=32, stride=32),
             ResNet(128), ResNet(128), ResNet(128), ResNet(128),
-            ResNet(128), ResNet(128), ResNet(128), ResNet(128),
+            ResNet(128), ResNet(128), ResNet(128), ResNet(128)
+            ResNet(128), ResNet(128), ResNet(128), ResNet(128)
+            ResNet(128), ResNet(128), ResNet(128), ResNet(128)
+        )
+        self.transformer = nn.Sequential(
             PositionalEncoding(128, max_len=1024),
             nn.TransformerEncoder(
                 nn.TransformerEncoderLayer(
-                    d_model=1024,
+                    d_model=128,
                     nhead=4,
                     dim_feedforward=1024,
                     dropout=0.1),
                 num_layers=4
-            ),
+            )
+        )
+        self.out_conv = nn.Sequential(
+            ResNet(128), ResNet(128), ResNet(128), ResNet(128),
+            ResNet(128), ResNet(128), ResNet(128), ResNet(128),
             ResNet(128), ResNet(128), ResNet(128), ResNet(128),
             ResNet(128), ResNet(128), ResNet(128), ResNet(128),
             nn.ELU(), nn.BatchNorm1d(128),
@@ -45,6 +53,11 @@ class RNADLM(nn.Module):
         seq = seq.to(device = self.device)
         seq = self.embedding(seq)
         seq = self.convolutions(seq)
+        seq = seq.transpose(1,2)
+        seq = self.transformer(seq)
+        seq = seq.transpose(1,2)
+        seq = self.out_conv(seq)
+
         seq = seq.transpose(1,2).\
             reshape(-1, int(seq.shape[2]*32), int(seq.shape[1]/32)).\
             transpose(1,2)
