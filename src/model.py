@@ -20,10 +20,10 @@ class RNADLM(nn.Module):
         )
         self.transformer = nn.Sequential(
             PositionalEncoding(128, max_len=1024),
-            SelfAttention(128, num_heads=4, dropout=0.1),
-            SelfAttention(128, num_heads=4, dropout=0.1),
-            SelfAttention(128, num_heads=4, dropout=0.1),
-            SelfAttention(128, num_heads=4, dropout=0.1)
+            SelfAttention(128, num_heads=1, dropout=0.1),
+            SelfAttention(128, num_heads=1, dropout=0.1),
+            SelfAttention(128, num_heads=1, dropout=0.1),
+            SelfAttention(128, num_heads=1, dropout=0.1)
         )
         self.out_conv = nn.Sequential(
             ResNet(128), ResNet(128), ResNet(128), ResNet(128),
@@ -34,10 +34,17 @@ class RNADLM(nn.Module):
         )
 
         self.loss_function = nn.BCELoss()
-        self.optimizer = tr.optim.Adam(self.parameters(), lr=1e-2, weight_decay=1e-5)
-        self.lr_scheduler = tr.optim.lr_scheduler.ReduceLROnPlateau(
-            self.optimizer, mode='max', factor=0.5,
-            patience=100, min_lr=1e-6, eps=1e-9
+        self.optimizer = tr.optim.SGD(
+            self.parameters(),
+            lr=1e-2,
+            momentum=0.9,
+            weight_decay=1e-5
+            )
+        self.lr_scheduler = tr.optim.lr_scheduler.CyclicLR(
+            self.optimizer,
+            base_lr=1e-3, max_lr=1e-1,
+            step_size_up=2048,
+            cycle_momentum=True, base_momentum=0.8, max_momentum=0.9
             )
 
         self.to(device = self.device)

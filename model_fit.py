@@ -33,8 +33,7 @@ def main(argv):
         dataset,
         batch_size=16,
         sampler=sampler,
-        pin_memory=True,
-        num_workers=2
+        pin_memory=True
         )
 
     model = RNADLM(dev)
@@ -56,8 +55,7 @@ def main(argv):
             new_loss, new_acc = model.train_step(seq, idx, msk)
             train_loss = 0.99 * train_loss + 0.01 * new_loss
             train_acc =  0.99 * train_acc + 0.01 * new_acc
-
-        # model.lr_scheduler.step(train_loss)
+            model.lr_scheduler.step()
         last_improvement += 1
         if train_loss < best_train_loss:
             best_train_loss = train_loss
