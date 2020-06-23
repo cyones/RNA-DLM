@@ -29,7 +29,7 @@ class MaskedRNAGenerator(Dataset):
                 self.chromosome.append(tns)
                 self.total_len += len(seq)
                 nseqs += 1
-                if max_chromosome_num and nseqs > max_chromosome_num:
+                if max_chromosome_num and nseqs >= max_chromosome_num:
                     break
 
     def __len__(self):
