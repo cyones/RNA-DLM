@@ -31,7 +31,7 @@ class MaskedRNAGenerator(Dataset):
                 nseqs += 1
                 if max_chromosome_num and nseqs >= max_chromosome_num:
                     break
-        log.write(f"Loaded dataset with {self.total_len} bases")
+        log.write(f"Loaded dataset with {self.total_len} bases\n")
 
     def __len__(self):
         return self.total_len - self.sequence_len

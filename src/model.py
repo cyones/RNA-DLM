@@ -34,14 +34,15 @@ class RNADLM(nn.Module):
         )
         self.self_atention = nn.Sequential(
             PositionalEncoding(128, max_len=1024),
-            SelfAttention(128, num_heads=1, dropout=0.1),
-            SelfAttention(128, num_heads=1, dropout=0.1),
-            SelfAttention(128, num_heads=2, dropout=0.1),
-            SelfAttention(128, num_heads=2, dropout=0.1),
-            SelfAttention(128, num_heads=4, dropout=0.1),
-            SelfAttention(128, num_heads=4, dropout=0.1),
-            SelfAttention(128, num_heads=8, dropout=0.1),
-            SelfAttention(128, num_heads=8, dropout=0.1)
+            nn.TransformerEncoder(
+                nn.TransformerEncoderLayer(
+                    d_model=128, 
+                    nhead=4, 
+                    dim_feedforward=1024, 
+                    dropout=0.1,
+                    activation='gelu'
+            ),
+            num_layers = 8
         )
         self.out_convs = nn.Sequential(
             nn.Conv1d(128, 128, kernel_size=3, padding=1),
