@@ -14,10 +14,21 @@ class RNADLM(nn.Module):
         self.embedding = NucleotideEmbedding()
 
         self.tokenizer = nn.Sequential(
-            nn.Conv1d(4, 128, kernel_size=32, stride=32),
-            ResNet(128), ResNet(128), ResNet(128), ResNet(128),
-            ResNet(128), ResNet(128), ResNet(128), ResNet(128),
-            ResNet(128), ResNet(128), ResNet(128), ResNet(128),
+            ResNet(4), ResNet(4), ResNet(4), ResNet(4),
+            nn.GELU(), nn.BatchNorm1d(4),
+            nn.Conv1d(4, 8, kernel_size=2, stride=2),
+            ResNet(8), ResNet(8), ResNet(8), ResNet(8),
+            nn.GELU(), nn.BatchNorm1d(8),
+            nn.Conv1d(8, 16, kernel_size=2, stride=2),
+            ResNet(16), ResNet(16), ResNet(16), ResNet(16),
+            nn.GELU(), nn.BatchNorm1d(16),
+            nn.Conv1d(16, 32, kernel_size=2, stride=2),
+            ResNet(32), ResNet(32), ResNet(32), ResNet(32),
+            nn.GELU(), nn.BatchNorm1d(32),
+            nn.Conv1d(32, 64, kernel_size=2, stride=2),
+            ResNet(64), ResNet(64), ResNet(64), ResNet(64),
+            nn.GELU(), nn.BatchNorm1d(64),
+            nn.Conv1d(64, 128, kernel_size=2, stride=2),
             ResNet(128), ResNet(128), ResNet(128), ResNet(128),
             nn.GELU(), nn.BatchNorm1d(128),
         )
