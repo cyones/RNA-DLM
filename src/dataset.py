@@ -5,13 +5,21 @@ from src.logger import log
 from torch.utils.data import Dataset
 
 class MaskedRNAGenerator(Dataset):
-    def __init__(self, input_file, sequence_len, max_masked_len, masked_proportion):
+    def __init__(
+        self,
+        input_file,
+        sequence_len,
+        max_masked_len,
+        max_chromosome_num=None,
+        masked_proportion
+        ):
         self.sequence_len = sequence_len
         self.max_masked_len = max_masked_len
         self.masked_proportion = masked_proportion
         self.chromosome = []
 
         self.total_len = 0
+        nseqs = 0
         with open(input_file, "r") as handle:
             for record in SeqIO.parse(handle, "fasta"):
                 seq = str(record.seq.lower().transcribe())
@@ -20,6 +28,9 @@ class MaskedRNAGenerator(Dataset):
                 tns = tr.ByteTensor([self.seq2num[n] for n in seq])
                 self.chromosome.append(tns)
                 self.total_len += len(seq)
+                nseqs += 1
+                if max_chromosome_num and nseqs > max_chromosome_num:
+                    break
 
     def __len__(self):
         return self.total_len - self.sequence_len
