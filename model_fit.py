@@ -39,7 +39,7 @@ def main(argv):
 
     model = RNADLM(dev)
     if path.exists("model.pmt"):
-        log.write("Loading model ./model.pmt")
+        log.write("Loading model ./model.pmt\n")
         model.load("model.pmt")
 
     log.write(
