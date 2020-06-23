@@ -50,7 +50,7 @@ class RNADLM(nn.Module):
             )
         self.lr_scheduler = tr.optim.lr_scheduler.CyclicLR(
             self.optimizer,
-            base_lr=1e-4, max_lr=1e-1,
+            base_lr=1e-4, max_lr=1e-2,
             step_size_up=2048,
             cycle_momentum=True, base_momentum=0.8, max_momentum=0.9
             )
