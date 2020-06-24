@@ -50,26 +50,22 @@ def main(argv):
 
     log.write('nbatch\tLoss\tAcc\tlast_imp\n')
     nbatch = 0
-    train_loss = 100
-    train_acc = 0
-    best_train_loss = 100
+    best_loss = 100
     last_improvement = 0
     early_stop = float('inf')
     while last_improvement < early_stop:
         for seq, idx, msk in data_loader:
             seq, idx, msk = seq.to(dev), idx.to(dev), msk.to(dev)
-            new_loss, new_acc = model.train_step(seq, idx, msk)
-            train_loss = 0.99 * train_loss + 0.01 * new_loss
-            train_acc =  0.99 * train_acc + 0.01 * new_acc
+            loss, acc = model.train_step(seq, idx, msk)
             model.lr_scheduler.step()
         last_improvement += 1
-        if train_loss < best_train_loss:
-            best_train_loss = train_loss
+        if loss < best_loss:
+            best_loss = loss
             last_improvement = 0
             model.save("model.pmt")
 
         log.write('%d\t%.2f\t%.2f\t%d\n' %
-                (nbatch, train_loss, train_acc, last_improvement))
+                (nbatch, loss, acc, last_improvement))
         nbatch += 1
 
 if __name__ == "__main__":
