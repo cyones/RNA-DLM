@@ -32,7 +32,7 @@ def main(argv):
 
     data_loader = dt.DataLoader(
         dataset,
-        batch_size=16,
+        batch_size=12,
         sampler=sampler,
         pin_memory=True
         )
