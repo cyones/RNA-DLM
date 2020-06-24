@@ -32,7 +32,7 @@ def main(argv):
 
     data_loader = dt.DataLoader(
         dataset,
-        batch_size=12,
+        batch_size=8,
         sampler=sampler,
         pin_memory=True
         )
@@ -54,18 +54,21 @@ def main(argv):
     last_improvement = 0
     early_stop = float('inf')
     while last_improvement < early_stop:
+        mean_loss, mean_acc = 0, 0
         for seq, idx, msk in data_loader:
             seq, idx, msk = seq.to(dev), idx.to(dev), msk.to(dev)
             loss, acc = model.train_step(seq, idx, msk)
+            mean_loss += loss / len(data_loader)
+            mean_acc += acc / len(data_loader)
             model.lr_scheduler.step()
         last_improvement += 1
-        if loss < best_loss:
-            best_loss = loss
+        if mean_loss < best_loss:
+            best_loss = mean_loss
             last_improvement = 0
             model.save("model.pmt")
 
         log.write('%d\t%.2f\t%.2f\t%d\n' %
-                (nbatch, loss, acc, last_improvement))
+                (nbatch, mean_loss, mean_acc, last_improvement))
         nbatch += 1
 
 if __name__ == "__main__":
