@@ -25,7 +25,7 @@ class MaskedRNAGenerator(Dataset):
                 seq = str(record.seq.lower().transcribe())
                 if len(seq) < self.sequence_len:
                     log.write(f"Sequence {record.name} too short, skipped...\n")
-                tns = tr.ByteTensor([self.seq2num[n] for n in seq])
+                tns = tr.LongTensor([self.seq2num[n] for n in seq])
                 self.chromosome.append(tns)
                 self.total_len += len(seq)
                 nseqs += 1
@@ -56,6 +56,6 @@ class MaskedRNAGenerator(Dataset):
 
         return seq, mask_idx, masked_sequence
 
-    seq2num = {'a':  1, 'c':  2, 'g':  3, 'u':  4, 'w':  5,
-               's':  6, 'k':  7, 'm':  8, 'y':  9, 'r': 10,
-               'b': 11, 'd': 12, 'h': 13, 'v': 14, 'n': 15}
+    seq2num = {'a': 1, 'c': 2, 'g': 3, 'u': 4, 'w': 0,
+               's': 0, 'k': 0, 'm': 0, 'y': 0, 'r': 0,
+               'b': 0, 'd': 0, 'h': 0, 'v': 0, 'n': 0}

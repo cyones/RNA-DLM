@@ -1,5 +1,6 @@
 import torch as tr
 import torch.nn as nn
+from sklearn.metrics import accuracy_score
 from src.embedding import NucleotideEmbedding, in_channels
 from src.resnet import ResNet
 from src.positional_encoding import PositionalEncoding
@@ -50,10 +51,11 @@ class RNADLM(nn.Module):
             ResNet(128), ResNet(128), ResNet(128), ResNet(128),
             ResNet(128), ResNet(128), ResNet(128), ResNet(128),
             ResNet(128), ResNet(128), ResNet(128), ResNet(128),
-            nn.Sigmoid()
+            nn.GELU(), nn.BatchNorm1d(128),
+            nn.Conv1d(128, 160, kernel_size=1),
         )
 
-        self.loss_function = nn.BCELoss()
+        self.loss_function = nn.CrossEntropyLoss()
         self.optimizer = tr.optim.SGD(
             self.parameters(),
             lr=1e-3,
@@ -64,7 +66,7 @@ class RNADLM(nn.Module):
             self.optimizer,
             base_lr=1e-3,
             max_lr=2.0,
-            step_size_up=2048,
+            step_size_up=512,
             cycle_momentum=True,
             base_momentum=0.5,
             max_momentum=0.9
@@ -90,15 +92,18 @@ class RNADLM(nn.Module):
     def train_step(self, seq, mask_idx, masked):
         self.optimizer.zero_grad()
         pred = self(seq)
-        masked = self.embedding(masked)
         
         loss = 0
         acc = 0
         for i in range(pred.shape[0]):
             seq_pred = pred[i, :, mask_idx[i]]
             seq_targ = masked[i]
-            loss += self.loss_function(seq_pred, seq_targ)
-            acc += ((seq_pred>0.5) == (seq_targ>0.5)).sum().float() / seq_pred.numel()
+            loss += self.loss_function(
+                seq_pred.unsqueeze(0),
+                seq_targ.unsqueeze(0))
+            acc += accuracy_score(
+                seq_targ.cpu().detach(),
+                seq_pred.argmax(dim=0).cpu().detach())
         loss.backward()
         nn.utils.clip_grad_norm_(self.parameters(), 0.5)
         self.optimizer.step()
