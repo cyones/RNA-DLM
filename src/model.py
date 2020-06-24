@@ -3,7 +3,6 @@ import torch.nn as nn
 from src.embedding import NucleotideEmbedding, in_channels
 from src.resnet import ResNet
 from src.positional_encoding import PositionalEncoding
-from src.self_attention import SelfAttention
 
 
 class RNADLM(nn.Module):
@@ -41,8 +40,9 @@ class RNADLM(nn.Module):
                     dim_feedforward=1024, 
                     dropout=0.1,
                     activation='gelu'
-            ),
-            num_layers = 8
+                ),
+                num_layers = 8
+            )
         )
         self.out_convs = nn.Sequential(
             nn.Conv1d(128, 128, kernel_size=3, padding=1),
@@ -56,17 +56,19 @@ class RNADLM(nn.Module):
         self.loss_function = nn.BCELoss()
         self.optimizer = tr.optim.SGD(
             self.parameters(),
-            lr=1e-4,
+            lr=1e-3,
             momentum=0.9,
             weight_decay=1e-5
             )
         self.lr_scheduler = tr.optim.lr_scheduler.CyclicLR(
             self.optimizer,
-            base_lr=1e-4, max_lr=1e-2,
+            base_lr=1e-3,
+            max_lr=2.0,
             step_size_up=2048,
-            cycle_momentum=True, base_momentum=0.8, max_momentum=0.9
+            cycle_momentum=True,
+            base_momentum=0.5,
+            max_momentum=0.9
             )
-
         self.to(device = self.device)
 
     def forward(self, seq):
@@ -98,6 +100,7 @@ class RNADLM(nn.Module):
             loss += self.loss_function(seq_pred, seq_targ)
             acc += ((seq_pred>0.5) == (seq_targ>0.5)).sum().float() / seq_pred.numel()
         loss.backward()
+        torch.nn.utils.clip_grad_norm_(self.parameters(), 0.5)
         self.optimizer.step()
         acc = 100 * acc.item() / pred.shape[0]
         return loss.data.item(), acc
