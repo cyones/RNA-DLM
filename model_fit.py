@@ -21,7 +21,7 @@ def main(argv):
         input_file="data/Caenorhabditis_elegans.WBcel235.dna_sm.toplevel.fa",
         sequence_len=32768,
         max_masked_len=1,
-        masked_proportion=1/16
+        masked_proportion=1/8
         )
 
     sampler = dt.RandomSampler(
@@ -32,7 +32,7 @@ def main(argv):
 
     data_loader = dt.DataLoader(
         dataset,
-        batch_size=8,
+        batch_size=16,
         sampler=sampler,
         pin_memory=True
         )
