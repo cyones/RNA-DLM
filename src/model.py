@@ -100,7 +100,7 @@ class RNADLM(nn.Module):
             loss += self.loss_function(seq_pred, seq_targ)
             acc += ((seq_pred>0.5) == (seq_targ>0.5)).sum().float() / seq_pred.numel()
         loss.backward()
-        torch.nn.utils.clip_grad_norm_(self.parameters(), 0.5)
+        nn.utils.clip_grad_norm_(self.parameters(), 0.5)
         self.optimizer.step()
         acc = 100 * acc.item() / pred.shape[0]
         return loss.data.item(), acc
