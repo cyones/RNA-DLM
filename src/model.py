@@ -1,6 +1,6 @@
 import torch as tr
 import torch.nn as nn
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import balanced_accuracy_score
 from src.embedding import NucleotideEmbedding, in_channels
 from src.resnet import ResNet
 from src.positional_encoding import PositionalEncoding
@@ -31,14 +31,20 @@ class RNADLM(nn.Module):
             nn.Conv1d(64, 128, kernel_size=2, stride=2),
             ResNet(128), ResNet(128), ResNet(128), ResNet(128),
             nn.GELU(), nn.BatchNorm1d(128),
+            nn.Conv1d(128, 256, kernel_size=2, stride=2),
+            ResNet(256), ResNet(256), ResNet(256), ResNet(256),
+            nn.GELU(), nn.BatchNorm1d(256),
+            nn.Conv1d(256, 512, kernel_size=2, stride=2),
+            ResNet(512), ResNet(512), ResNet(512), ResNet(512),
+            nn.GELU(), nn.BatchNorm1d(512),
         )
         self.self_atention = nn.Sequential(
-            PositionalEncoding(128, max_len=1024),
+            PositionalEncoding(512, max_len=1024),
             nn.TransformerEncoder(
                 nn.TransformerEncoderLayer(
-                    d_model=128, 
-                    nhead=4, 
-                    dim_feedforward=1024, 
+                    d_model=512, 
+                    nhead=8, 
+                    dim_feedforward=2048, 
                     dropout=0.1,
                     activation='gelu'
                 ),
@@ -46,13 +52,13 @@ class RNADLM(nn.Module):
             )
         )
         self.out_convs = nn.Sequential(
-            nn.Conv1d(128, 128, kernel_size=3, padding=1),
-            ResNet(128), ResNet(128), ResNet(128), ResNet(128),
-            ResNet(128), ResNet(128), ResNet(128), ResNet(128),
-            ResNet(128), ResNet(128), ResNet(128), ResNet(128),
-            ResNet(128), ResNet(128), ResNet(128), ResNet(128),
-            nn.GELU(), nn.BatchNorm1d(128),
-            nn.Conv1d(128, 160, kernel_size=1),
+            nn.Conv1d(512, 512, kernel_size=3, padding=1),
+            ResNet(512), ResNet(512), ResNet(512), ResNet(512),
+            ResNet(512), ResNet(512), ResNet(512), ResNet(512),
+            ResNet(512), ResNet(512), ResNet(512), ResNet(512),
+            ResNet(512), ResNet(512), ResNet(512), ResNet(512),
+            nn.GELU(), nn.BatchNorm1d(512),
+            nn.Conv1d(512, 640, kernel_size=1),
         )
 
         self.loss_function = nn.CrossEntropyLoss()
@@ -84,7 +90,7 @@ class RNADLM(nn.Module):
         seq = self.out_convs(seq)
 
         seq = seq.transpose(1,2).\
-                  reshape(-1, int(seq.shape[2]*32), int(seq.shape[1]/32)).\
+                  reshape(-1, int(seq.shape[2]*128), int(seq.shape[1]/128)).\
                   transpose(1,2)
         return seq
 
@@ -100,7 +106,7 @@ class RNADLM(nn.Module):
             loss += self.loss_function(
                 seq_pred.unsqueeze(0),
                 seq_targ.unsqueeze(0))
-            acc += accuracy_score(
+            acc += balanced_accuracy_score(
                 seq_targ.cpu().detach(),
                 seq_pred.argmax(dim=0).cpu().detach())
         loss.backward()

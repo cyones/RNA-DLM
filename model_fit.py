@@ -19,7 +19,7 @@ def main(argv):
 
     dataset = MaskedRNAGenerator(
         input_file="data/Caenorhabditis_elegans.WBcel235.dna_sm.toplevel.fa",
-        sequence_len=32768,
+        sequence_len = 2**17,
         max_masked_len=1,
         masked_proportion=1/8
         )
@@ -27,7 +27,7 @@ def main(argv):
     sampler = dt.RandomSampler(
         dataset,
         replacement=True,
-        num_samples=1024
+        num_samples=128
     )
 
     data_loader = dt.DataLoader(
@@ -50,7 +50,7 @@ def main(argv):
 
     log.write('nbatch\tLoss\tAcc\tlast_imp\n')
     nbatch = 0
-    best_loss = 100
+    best_loss = float('inf')
     last_improvement = 0
     early_stop = float('inf')
     while last_improvement < early_stop:
