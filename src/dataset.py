@@ -1,61 +1,75 @@
 import torch as tr
 import random as rn
+import sentencepiece as spm
 from Bio import SeqIO
 from src.logger import log
 from torch.utils.data import Dataset
+from tqdm import tqdm
 
 class MaskedRNAGenerator(Dataset):
     def __init__(
         self,
-        input_file,
+        fasta_files,
         sequence_len,
-        max_masked_len,
+        mask_lens,
         masked_proportion,
         max_chromosome_num=None
         ):
         self.sequence_len = sequence_len
-        self.max_masked_len = max_masked_len
+        self.mask_lens = mask_lens
         self.masked_proportion = masked_proportion
         self.chromosome = []
 
+        sp = spm.SentencePieceProcessor(model_file='tokenizers/cel_bpe_4096.model')
+
         self.total_len = 0
         nseqs = 0
-        with open(input_file, "r") as handle:
-            for record in SeqIO.parse(handle, "fasta"):
-                seq = str(record.seq.lower().transcribe())
-                if len(seq) < self.sequence_len:
-                    log.write(f"Sequence {record.name} too short, skipped...\n")
-                tns = tr.LongTensor([self.seq2num[n] for n in seq])
-                self.chromosome.append(tns)
-                self.total_len += len(seq)
-                nseqs += 1
-                if max_chromosome_num and nseqs >= max_chromosome_num:
-                    break
-        log.write(f"Loaded dataset with {self.total_len} bases\n")
+        for filename in fasta_files:
+            print(f"Loading file {filename}")
+            with open(filename, "r") as handle:
+                for record in SeqIO.parse(handle, "fasta"):
+                    print(f"Tokenizing sequence {record.name}")
+                    seq = str(record.seq.upper())
+                    chunk_size = 1000000
+                    tokens = []
+                    for chunk in tqdm([seq[i:i+chunk_size] for i in range(0, len(seq), chunk_size)]):
+                        tokens.extend(sp.encode(chunk))
+                    if len(tokens) < self.sequence_len:
+                        log.write(f"Sequence {record.name} too short, skipped...\n")
+                    tns = tr.LongTensor(tokens)
+                    self.chromosome.append(tns)
+                    self.total_len += (len(tokens) - self.sequence_len)
+                    nseqs += 1
+                    if max_chromosome_num and nseqs >= max_chromosome_num:
+                        break
+        self.class_weights = 1 / (tr.bincount(tr.cat([seq for seq in self.chromosome])) + 100)
+        self.class_weights /= self.class_weights.sum()
+        self.total_len = min(self.total_len, 2 ** 8)
+        log.write(f"Loaded dataset with {self.total_len + self.sequence_len} tokens\n")
 
     def __len__(self):
-        return self.total_len - self.sequence_len
+        return self.total_len
 
     def __getitem__(self, index):
         chromosome_idx = 0
-        while index > len(self.chromosome[chromosome_idx]):
-            index -= len(self.chromosome[chromosome_idx])
+        while index > (len(self.chromosome[chromosome_idx]) - self.sequence_len):
+            index -= (len(self.chromosome[chromosome_idx]) - self.sequence_len)
             chromosome_idx += 1
-        seq = self.chromosome[chromosome_idx][index:(index+self.sequence_len)]
-        seq = tr.nn.functional.pad(seq, [0, self.sequence_len-len(seq)])
-        
-        mask_len = rn.randint(1, self.max_masked_len)
+        sequence = self.chromosome[chromosome_idx][index:(index+self.sequence_len)]
+
+        mask_len = rn.choice(self.mask_lens)
         mask_number = int((self.masked_proportion * self.sequence_len) // mask_len)
         mask_idx = tr.randint(high=self.sequence_len-mask_len, size=[mask_number])
 
         mask_idx_starts = mask_idx.clone()
+        mask_idx = [mask_idx]
         for i in range(1, mask_len):
-            mask_idx = tr.cat([mask_idx, mask_idx_starts+i-1])
-        masked_sequence = seq[mask_idx]
-        seq[mask_idx] = 0
+            mask_idx.append(mask_idx_starts+i-1)
+        mask_idx = tr.cat(mask_idx)
+        # Do not mask unknown bases
+        mask_idx = mask_idx[ sequence[mask_idx] > 0]
 
-        return seq, mask_idx, masked_sequence
+        masked_sequence = sequence.clone()
+        masked_sequence[mask_idx] = 4097
 
-    seq2num = {'a': 1, 'c': 2, 'g': 3, 'u': 4, 'w': 0,
-               's': 0, 'k': 0, 'm': 0, 'y': 0, 'r': 0,
-               'b': 0, 'd': 0, 'h': 0, 'v': 0, 'n': 0}
+        return masked_sequence, sequence

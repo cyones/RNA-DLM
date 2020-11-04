@@ -6,22 +6,12 @@ in_channels = 4
 class NucleotideEmbedding(nn.Module):
     def __init__(self):
         super(NucleotideEmbedding, self).__init__()
-        weight = tr.Tensor([[0, 0, 0, 0],
-                            [1, 0, 0, 0],
-                            [0, 1, 0, 0],
-                            [0, 0, 1, 0],
-                            [0, 0, 0, 1],
-                            [1, 0, 0, 1],
-                            [0, 1, 1, 0],
-                            [0, 0, 1, 1],
-                            [1, 1, 0, 0],
-                            [0, 1, 0, 1],
-                            [1, 0, 1, 0],
-                            [0, 1, 1, 1],
-                            [1, 0, 1, 1],
-                            [1, 1, 0, 1],
-                            [1, 1, 1, 0],
-                            [1, 1, 1, 1]])
+        weight = tr.Tensor([[0, 0, 0, 0, 0],
+                            [1, 0, 0, 0, 0],
+                            [0, 1, 0, 0, 0],
+                            [0, 0, 1, 0, 0],
+                            [0, 0, 0, 1, 0],
+                            [0, 0, 0, 0, 1]])
         self.embedding = nn.Embedding.from_pretrained(weight)
 
     def forward(self, x):

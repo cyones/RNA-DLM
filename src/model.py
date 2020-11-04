@@ -1,119 +1,103 @@
 import torch as tr
 import torch.nn as nn
-from sklearn.metrics import balanced_accuracy_score
+#  from performer_pytorch import Performer
+from sklearn.metrics import balanced_accuracy_score, accuracy_score
 from src.embedding import NucleotideEmbedding, in_channels
 from src.resnet import ResNet
 from src.positional_encoding import PositionalEncoding
 
 
 class RNADLM(nn.Module):
-    def __init__(self, device):
+    def __init__(self, device, class_weights):
         super(RNADLM, self).__init__()
         self.device = device
 
-        self.embedding = NucleotideEmbedding()
+        embedding_dim = 768
+        self.embedding = nn.Embedding(
+                num_embeddings=4096 + 2,
+                embedding_dim=embedding_dim,
+                padding_idx=0
+                )
 
-        self.tokenizer = nn.Sequential(
-            ResNet(4), ResNet(4), ResNet(4), ResNet(4),
-            nn.GELU(), nn.BatchNorm1d(4),
-            nn.Conv1d(4, 8, kernel_size=2, stride=2),
-            ResNet(8), ResNet(8), ResNet(8), ResNet(8),
-            nn.GELU(), nn.BatchNorm1d(8),
-            nn.Conv1d(8, 16, kernel_size=2, stride=2),
-            ResNet(16), ResNet(16), ResNet(16), ResNet(16),
-            nn.GELU(), nn.BatchNorm1d(16),
-            nn.Conv1d(16, 32, kernel_size=2, stride=2),
-            ResNet(32), ResNet(32), ResNet(32), ResNet(32),
-            nn.GELU(), nn.BatchNorm1d(32),
-            nn.Conv1d(32, 64, kernel_size=2, stride=2),
-            ResNet(64), ResNet(64), ResNet(64), ResNet(64),
-            nn.GELU(), nn.BatchNorm1d(64),
-            nn.Conv1d(64, 128, kernel_size=2, stride=2),
-            ResNet(128), ResNet(128), ResNet(128), ResNet(128),
-            nn.GELU(), nn.BatchNorm1d(128),
-            nn.Conv1d(128, 256, kernel_size=2, stride=2),
-            ResNet(256), ResNet(256), ResNet(256), ResNet(256),
-            nn.GELU(), nn.BatchNorm1d(256),
-            nn.Conv1d(256, 512, kernel_size=2, stride=2),
-            ResNet(512), ResNet(512), ResNet(512), ResNet(512),
-            nn.GELU(), nn.BatchNorm1d(512),
-        )
         self.self_atention = nn.Sequential(
-            PositionalEncoding(512, max_len=1024),
+            PositionalEncoding(embedding_dim, max_len=1024),
+            #  Performer(
+                #  dim = embedding_dim,
+                #  local_attn_heads = 1,
+                #  depth = 6,
+                #  heads = 8,
+                #  causal = False,
+                #  kernel_fn = nn.GELU(),
+                #  ff_dropout = 0.1,
+                #  attn_dropout = 0.1
+            #  )
             nn.TransformerEncoder(
                 nn.TransformerEncoderLayer(
-                    d_model=512, 
-                    nhead=8, 
-                    dim_feedforward=2048, 
+                    d_model=embedding_dim,
+                    nhead=12,
+                    dim_feedforward=2048,
                     dropout=0.1,
                     activation='gelu'
                 ),
-                num_layers = 8
+                num_layers = 16
             )
-        )
-        self.out_convs = nn.Sequential(
-            nn.Conv1d(512, 512, kernel_size=3, padding=1),
-            ResNet(512), ResNet(512), ResNet(512), ResNet(512),
-            ResNet(512), ResNet(512), ResNet(512), ResNet(512),
-            ResNet(512), ResNet(512), ResNet(512), ResNet(512),
-            ResNet(512), ResNet(512), ResNet(512), ResNet(512),
-            nn.GELU(), nn.BatchNorm1d(512),
-            nn.Conv1d(512, 640, kernel_size=1),
         )
 
-        self.loss_function = nn.CrossEntropyLoss()
+        self.linear = nn.Linear(embedding_dim, 4096)
+
+        self.loss_function = nn.CrossEntropyLoss(weight=class_weights.to(device))
+        #  self.optimizer = tr.optim.Adam(self.parameters())
         self.optimizer = tr.optim.SGD(
             self.parameters(),
-            lr=1e-3,
+            lr=1e-6,
             momentum=0.9,
-            )
+        )
         self.lr_scheduler = tr.optim.lr_scheduler.CyclicLR(
             self.optimizer,
-            base_lr=1e-3,
-            max_lr=1.0,
-            step_size_up=512,
+            scale_mode="exp_range",
+            gamma=0.95,
+            base_lr=1e-6,
+            max_lr=0.5,
+            step_size_up=16,
             cycle_momentum=True,
-            base_momentum=0.1,
+            base_momentum=0.5,
             max_momentum=0.9
-            )
+        )
         self.to(device = self.device)
 
     def forward(self, seq):
-        seq = seq.to(device = self.device)
-        seq = self.embedding(seq)
-        seq = self.tokenizer(seq)
-        # [sequence length, batch size, embed dim]
-        seq = seq.transpose(0,1).transpose(0,2)
-        seq = self.self_atention(seq)
-        # [batch size, embed dim, sequence length]
-        seq = seq.transpose(0,1).transpose(1,2)
-        seq = self.out_convs(seq)
+        x = seq.to(device = self.device)
+        x = self.embedding(x)
+        x = self.self_atention(x)
+        x = self.linear(x).transpose(1,2)
+        return x
 
-        seq = seq.transpose(1,2).\
-                  reshape(-1, int(seq.shape[2]*128), int(seq.shape[1]/128)).\
-                  transpose(1,2)
-        return seq
+    def train_step(self, masked_sequence, sequence):
+        masked = masked_sequence==4097
+        prediction = self(masked_sequence)
 
-    def train_step(self, seq, mask_idx, masked):
-        self.optimizer.zero_grad()
-        pred = self(seq)
-        
-        loss = 0
-        acc = 0
-        for i in range(pred.shape[0]):
-            seq_pred = pred[i, :, mask_idx[i]]
-            seq_targ = masked[i]
-            loss += self.loss_function(
-                seq_pred.unsqueeze(0),
-                seq_targ.unsqueeze(0))
-            acc += balanced_accuracy_score(
-                seq_targ.cpu().detach(),
-                seq_pred.argmax(dim=0).cpu().detach())
-        loss.backward()
-        nn.utils.clip_grad_norm_(self.parameters(), 0.5)
+        prediction = prediction.transpose(1,2)[masked]
+        sequence = sequence[masked] - 1
+        loss = self.loss_function(prediction, sequence)
+        y_true = sequence.detach().cpu()
+        y_pred = prediction.detach().cpu().argmax(dim=1)
+        bacc = 100 * balanced_accuracy_score(
+                y_true = y_true,
+                y_pred = y_pred,
+                adjusted = True
+                )
+        acc = 100 * accuracy_score(
+                y_true = y_true,
+                y_pred = y_pred
+                )
+        #  import ipdb; ipdb.set_trace()
+        return loss, acc, bacc
+
+    def optimizer_step(self):
+        nn.utils.clip_grad_norm_(self.parameters(), max_norm=0.5)
         self.optimizer.step()
-        acc = 100 * acc.item() / pred.shape[0]
-        return loss.data.item(), acc
+        self.lr_scheduler.step()
+        self.optimizer.zero_grad()
 
     def load(self, model_file):
         self.load_state_dict(tr.load(model_file, map_location=lambda storage, loc: storage))
