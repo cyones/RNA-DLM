@@ -6,6 +6,9 @@ from src.logger import log
 from torch.utils.data import Dataset
 from tqdm import tqdm
 
+
+MASKED_IDX = 4096
+
 class MaskedRNAGenerator(Dataset):
     def __init__(
         self,
@@ -33,7 +36,7 @@ class MaskedRNAGenerator(Dataset):
                     chunk_size = 1000000
                     tokens = []
                     for chunk in tqdm([seq[i:i+chunk_size] for i in range(0, len(seq), chunk_size)]):
-                        tokens.extend(sp.encode(chunk))
+                        tokens.extend(sp.encode(chunk)[1:])
                     if len(tokens) < self.sequence_len:
                         log.write(f"Sequence {record.name} too short, skipped...\n")
                     tns = tr.LongTensor(tokens)
@@ -42,9 +45,8 @@ class MaskedRNAGenerator(Dataset):
                     nseqs += 1
                     if max_chromosome_num and nseqs >= max_chromosome_num:
                         break
-        self.class_weights = 1 / (tr.bincount(tr.cat([seq for seq in self.chromosome])) + 100)
+        self.class_weights = 1 / (tr.bincount(tr.cat([seq for seq in self.chromosome])) + 10)
         self.class_weights /= self.class_weights.sum()
-        self.total_len = min(self.total_len, 2 ** 8)
         log.write(f"Loaded dataset with {self.total_len + self.sequence_len} tokens\n")
 
     def __len__(self):
@@ -67,9 +69,9 @@ class MaskedRNAGenerator(Dataset):
             mask_idx.append(mask_idx_starts+i-1)
         mask_idx = tr.cat(mask_idx)
         # Do not mask unknown bases
-        mask_idx = mask_idx[ sequence[mask_idx] > 0]
+        mask_idx = mask_idx[ sequence[mask_idx] > 2]
 
         masked_sequence = sequence.clone()
-        masked_sequence[mask_idx] = 4097
+        masked_sequence[mask_idx] = MASKED_IDX
 
         return masked_sequence, sequence

@@ -1,10 +1,12 @@
 import torch as tr
 import torch.nn as nn
 #  from performer_pytorch import Performer
+import math as mt
 from sklearn.metrics import balanced_accuracy_score, accuracy_score
 from src.embedding import NucleotideEmbedding, in_channels
 from src.resnet import ResNet
 from src.positional_encoding import PositionalEncoding
+from src.dataset import MASKED_IDX
 
 
 class RNADLM(nn.Module):
@@ -12,38 +14,25 @@ class RNADLM(nn.Module):
         super(RNADLM, self).__init__()
         self.device = device
 
-        embedding_dim = 768
+        self.embedding_dim = 768
         self.embedding = nn.Embedding(
-                num_embeddings=4096 + 2,
-                embedding_dim=embedding_dim,
+                num_embeddings=4096 + 1,
+                embedding_dim=self.embedding_dim,
                 padding_idx=0
                 )
 
-        self.self_atention = nn.Sequential(
-            PositionalEncoding(embedding_dim, max_len=1024),
-            #  Performer(
-                #  dim = embedding_dim,
-                #  local_attn_heads = 1,
-                #  depth = 6,
-                #  heads = 8,
-                #  causal = False,
-                #  kernel_fn = nn.GELU(),
-                #  ff_dropout = 0.1,
-                #  attn_dropout = 0.1
-            #  )
-            nn.TransformerEncoder(
-                nn.TransformerEncoderLayer(
-                    d_model=embedding_dim,
-                    nhead=12,
-                    dim_feedforward=2048,
-                    dropout=0.1,
-                    activation='gelu'
+        self.positional_encodding = PositionalEncoding(self.embedding_dim, max_len=1024)
+        self.self_attention = nn.TransformerEncoder(
+            nn.TransformerEncoderLayer(
+                d_model=self.embedding_dim,
+                nhead=12,
+                dim_feedforward=2048,
+                activation='gelu'
                 ),
-                num_layers = 16
+            num_layers=10
             )
-        )
 
-        self.linear = nn.Linear(embedding_dim, 4096)
+        self.linear = nn.Linear(self.embedding_dim, 4096)
 
         self.loss_function = nn.CrossEntropyLoss(weight=class_weights.to(device))
         #  self.optimizer = tr.optim.Adam(self.parameters())
@@ -55,7 +44,7 @@ class RNADLM(nn.Module):
         self.lr_scheduler = tr.optim.lr_scheduler.CyclicLR(
             self.optimizer,
             scale_mode="exp_range",
-            gamma=0.95,
+            gamma=0.99,
             base_lr=1e-6,
             max_lr=0.5,
             step_size_up=16,
@@ -63,21 +52,26 @@ class RNADLM(nn.Module):
             base_momentum=0.5,
             max_momentum=0.9
         )
+        self.optimizer.zero_grad()
         self.to(device = self.device)
+        self.requires_grad_(True)
 
     def forward(self, seq):
         x = seq.to(device = self.device)
-        x = self.embedding(x)
-        x = self.self_atention(x)
-        x = self.linear(x).transpose(1,2)
+        x = self.embedding(x) * mt.sqrt(self.embedding_dim)
+        x = self.positional_encodding(x)
+        x = x.transpose(0,1)
+        x = self.self_attention(x)
+        x = x.transpose(0,1)
+        x = self.linear(x)
         return x
 
     def train_step(self, masked_sequence, sequence):
-        masked = masked_sequence==4097
+        masked = masked_sequence==MASKED_IDX
         prediction = self(masked_sequence)
 
-        prediction = prediction.transpose(1,2)[masked]
-        sequence = sequence[masked] - 1
+        prediction = prediction[masked]
+        sequence = sequence[masked]
         loss = self.loss_function(prediction, sequence)
         y_true = sequence.detach().cpu()
         y_pred = prediction.detach().cpu().argmax(dim=1)
@@ -90,7 +84,6 @@ class RNADLM(nn.Module):
                 y_true = y_true,
                 y_pred = y_pred
                 )
-        #  import ipdb; ipdb.set_trace()
         return loss, acc, bacc
 
     def optimizer_step(self):

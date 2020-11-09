@@ -29,7 +29,7 @@ def main(argv):
     sampler = dt.RandomSampler(
         dataset,
         replacement=True,
-        num_samples=16
+        num_samples=1024
     )
 
     data_loader = dt.DataLoader(
