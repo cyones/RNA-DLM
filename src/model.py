@@ -1,6 +1,6 @@
 import torch as tr
 import torch.nn as nn
-#  from performer_pytorch import Performer
+from performer_pytorch import Performer
 import math as mt
 from sklearn.metrics import balanced_accuracy_score, accuracy_score
 from src.embedding import NucleotideEmbedding, in_channels
@@ -21,7 +21,10 @@ class RNADLM(nn.Module):
                 padding_idx=0
                 )
 
-        self.positional_encodding = PositionalEncoding(self.embedding_dim, max_len=1024)
+        self.positional_encodding = PositionalEncoding(
+                self.embedding_dim,
+                max_len=1024
+                )
         self.self_attention = nn.TransformerEncoder(
             nn.TransformerEncoderLayer(
                 d_model=self.embedding_dim,
@@ -34,8 +37,9 @@ class RNADLM(nn.Module):
 
         self.linear = nn.Linear(self.embedding_dim, 4096)
 
-        self.loss_function = nn.CrossEntropyLoss(weight=class_weights.to(device))
-        #  self.optimizer = tr.optim.Adam(self.parameters())
+        self.loss_function = nn.CrossEntropyLoss(
+                weight=class_weights.to(device)
+                )
         self.optimizer = tr.optim.SGD(
             self.parameters(),
             lr=1e-6,
@@ -44,12 +48,12 @@ class RNADLM(nn.Module):
         self.lr_scheduler = tr.optim.lr_scheduler.CyclicLR(
             self.optimizer,
             scale_mode="exp_range",
-            gamma=0.99,
-            base_lr=1e-6,
-            max_lr=0.5,
-            step_size_up=16,
+            gamma=1.00,
+            base_lr=1e-4,
+            max_lr=1.0,
+            step_size_up=32,
             cycle_momentum=True,
-            base_momentum=0.5,
+            base_momentum=0.8,
             max_momentum=0.9
         )
         self.optimizer.zero_grad()

@@ -2,7 +2,6 @@ import torch as tr
 import random as rn
 import sentencepiece as spm
 from Bio import SeqIO
-from src.logger import log
 from torch.utils.data import Dataset
 from tqdm import tqdm
 
@@ -16,7 +15,7 @@ class MaskedRNAGenerator(Dataset):
         sequence_len,
         mask_lens,
         masked_proportion,
-        max_chromosome_num=None
+        admited_chromosomes=None
         ):
         self.sequence_len = sequence_len
         self.mask_lens = mask_lens
@@ -30,7 +29,8 @@ class MaskedRNAGenerator(Dataset):
         for filename in fasta_files:
             print(f"Loading file {filename}")
             with open(filename, "r") as handle:
-                for record in SeqIO.parse(handle, "fasta"):
+                for i, record in enumerate(SeqIO.parse(handle, "fasta")):
+                    if admited_chromosomes and i not in admited_chromosomes: continue
                     print(f"Tokenizing sequence {record.name}")
                     seq = str(record.seq.upper())
                     chunk_size = 1000000
@@ -38,16 +38,14 @@ class MaskedRNAGenerator(Dataset):
                     for chunk in tqdm([seq[i:i+chunk_size] for i in range(0, len(seq), chunk_size)]):
                         tokens.extend(sp.encode(chunk)[1:])
                     if len(tokens) < self.sequence_len:
-                        log.write(f"Sequence {record.name} too short, skipped...\n")
+                        print(f"Sequence {record.name} too short, skipped...\n")
                     tns = tr.LongTensor(tokens)
                     self.chromosome.append(tns)
                     self.total_len += (len(tokens) - self.sequence_len)
                     nseqs += 1
-                    if max_chromosome_num and nseqs >= max_chromosome_num:
-                        break
         self.class_weights = 1 / (tr.bincount(tr.cat([seq for seq in self.chromosome])) + 10)
         self.class_weights /= self.class_weights.sum()
-        log.write(f"Loaded dataset with {self.total_len + self.sequence_len} tokens\n")
+        print(f"Loaded dataset with {self.total_len + self.sequence_len} tokens\n")
 
     def __len__(self):
         return self.total_len
