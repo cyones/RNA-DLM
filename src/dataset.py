@@ -69,7 +69,7 @@ class MaskedRNAGenerator(Dataset):
         # Do not mask unknown bases
         mask_idx = mask_idx[ sequence[mask_idx] > 2]
 
-        masked_sequence = sequence.clone()
-        masked_sequence[mask_idx] = MASKED_IDX
+        mask = tr.ones_like(sequence).bool()
+        mask[mask_idx] = False
 
-        return masked_sequence, sequence
+        return sequence, mask

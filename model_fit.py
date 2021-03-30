@@ -15,18 +15,18 @@ tr.backends.cudnn.benchmark = True
 
 dev = tr.device("cuda:0")
 
-sequence_len = 1024
+sequence_len = 512
 masked_proportion = 1/8
-batch_size = 512
+batch_size = 128
 
-sw = SummaryWriter("runs/Ch1_Bs512_Pf_CSGD_768e_12h_10l")
+sw = SummaryWriter("runs/Ch1_Bs128_CSGD_256e_4h_6l_128w")
 
 def main(argv):
     pp = ParameterParser(argv)
 
     dataset = MaskedRNAGenerator(
         fasta_files = ["train_data/" + fn for fn in os.listdir('train_data/')],
-        admited_chromosomes = [0,1],
+        admited_chromosomes = [0],
         sequence_len = sequence_len,
         mask_lens=[1],
         masked_proportion=masked_proportion,
@@ -51,14 +51,14 @@ def main(argv):
         print("Parameters from model.pmt loaded")
     model.train()
 
-    epoch = 0
+    epoch, last_save = 0, 0
     last_improvement = 0
     best_loss = float('inf')
     early_stop = float('inf')
     while last_improvement < early_stop:
         mean_loss, mean_acc, mean_bacc = 0, 0, 0
-        for msk, seq in data_loader:
-            loss, acc, bacc = model.train_step(msk.to(dev), seq.to(dev))
+        for sequence, mask in data_loader:
+            loss, acc, bacc = model.train_step(sequence, mask)
             loss /= len(data_loader)
 
             loss.backward()
@@ -69,7 +69,8 @@ def main(argv):
         model.optimizer_step()
 
         last_improvement += 1
-        if mean_loss < best_loss:
+        if mean_loss < best_loss and epoch - last_save > 128:
+            last_save = epoch
             best_loss = mean_loss
             last_improvement = 0
             model.save("model.pmt")
