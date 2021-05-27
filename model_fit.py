@@ -15,18 +15,17 @@ tr.backends.cudnn.benchmark = True
 
 dev = tr.device("cuda:0")
 
-sequence_len = 512
+sequence_len = 256
 masked_proportion = 1/8
 batch_size = 128
 
-sw = SummaryWriter("runs/Ch1_Bs128_CSGD_256e_4h_6l_128w")
+sw = SummaryWriter("runs/baseline")
 
 def main(argv):
     pp = ParameterParser(argv)
 
     dataset = MaskedRNAGenerator(
         fasta_files = ["train_data/" + fn for fn in os.listdir('train_data/')],
-        admited_chromosomes = [0],
         sequence_len = sequence_len,
         mask_lens=[1],
         masked_proportion=masked_proportion,
